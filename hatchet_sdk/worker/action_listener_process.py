@@ -84,6 +84,9 @@ class WorkerActionListenerProcess:
         logger.debug(f"starting action listener: {self.name}")
 
         try:
+            import ipdb
+
+            ipdb.set_trace()
             self.dispatcher_client = new_dispatcher(self.config)
 
             self.listener: ActionListener = (
@@ -267,6 +270,10 @@ class WorkerActionListenerProcess:
 
 def worker_action_listener_process(*args, **kwargs):
     async def run():
+
+        import ipdb
+
+        ipdb.set_trace()
         process = WorkerActionListenerProcess(*args, **kwargs)
         await process.start()
         # Keep the process running

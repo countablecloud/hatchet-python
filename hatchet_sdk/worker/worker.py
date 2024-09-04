@@ -193,6 +193,9 @@ class Worker:
                     self.client.debug,
                 ),
             )
+            import ipdb
+
+            ipdb.set_trace()
             process.start()
             logger.debug(f"action listener starting on PID: {process.pid}")
 
