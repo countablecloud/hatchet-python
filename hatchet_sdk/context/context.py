@@ -4,6 +4,8 @@ import traceback
 from concurrent.futures import Future, ThreadPoolExecutor
 
 from hatchet_sdk.clients.events import EventClient
+from hatchet_sdk.clients.rest.tenacity_utils import tenacity_retry
+from hatchet_sdk.clients.rest_client import RestApi
 from hatchet_sdk.clients.run_event_listener import RunEventListenerClient
 from hatchet_sdk.clients.workflow_listener import PooledWorkflowRunListener
 from hatchet_sdk.context.worker_context import WorkerContext
@@ -65,6 +67,7 @@ class ContextAioImpl(BaseContext):
         dispatcher_client: DispatcherClient,
         admin_client: AdminClient,
         event_client: EventClient,
+        rest_client: RestApi,
         workflow_listener: PooledWorkflowRunListener,
         workflow_run_event_listener: RunEventListenerClient,
         worker: WorkerContext,
@@ -74,12 +77,14 @@ class ContextAioImpl(BaseContext):
         self.dispatcher_client = dispatcher_client
         self.admin_client = admin_client
         self.event_client = event_client
+        self.rest_client = rest_client
         self.workflow_listener = workflow_listener
         self.workflow_run_event_listener = workflow_run_event_listener
         self.namespace = namespace
         self.spawn_index = -1
         self.worker = worker
 
+    @tenacity_retry
     async def spawn_workflow(
         self,
         workflow_name: str,
@@ -88,15 +93,15 @@ class ContextAioImpl(BaseContext):
         options: ChildTriggerWorkflowOptions = None,
     ) -> WorkflowRunRef:
         worker_id = self.worker.id()
-        if (
-            options is not None
-            and "sticky" in options
-            and options["sticky"] == True
-            and not self.worker.has_workflow(workflow_name)
-        ):
-            raise Exception(
-                f"cannot run with sticky: workflow {workflow_name} is not registered on the worker"
-            )
+        # if (
+        #     options is not None
+        #     and "sticky" in options
+        #     and options["sticky"] == True
+        #     and not self.worker.has_workflow(workflow_name)
+        # ):
+        #     raise Exception(
+        #         f"cannot run with sticky: workflow {workflow_name} is not registered on the worker"
+        #     )
 
         trigger_options = self._prepare_workflow_options(key, options, worker_id)
 
@@ -116,6 +121,7 @@ class Context(BaseContext):
         dispatcher_client: DispatcherClient,
         admin_client: AdminClient,
         event_client: EventClient,
+        rest_client: RestApi,
         workflow_listener: PooledWorkflowRunListener,
         workflow_run_event_listener: RunEventListenerClient,
         worker: WorkerContext,
@@ -128,6 +134,7 @@ class Context(BaseContext):
             dispatcher_client,
             admin_client,
             event_client,
+            rest_client,
             workflow_listener,
             workflow_run_event_listener,
             worker,
@@ -157,6 +164,7 @@ class Context(BaseContext):
         self.dispatcher_client = dispatcher_client
         self.admin_client = admin_client
         self.event_client = event_client
+        self.rest_client = rest_client
         self.workflow_listener = workflow_listener
         self.workflow_run_event_listener = workflow_run_event_listener
         self.namespace = namespace
@@ -291,3 +299,23 @@ class Context(BaseContext):
 
     def parent_workflow_run_id(self):
         return self.action.parent_workflow_run_id
+
+    def fetch_run_failures(self):
+        data = self.rest_client.workflow_run_get(self.action.workflow_run_id)
+        other_job_runs = [
+            run for run in data.job_runs if run.job_id != self.action.job_id
+        ]
+        # TODO: Parse Step Runs using a Pydantic Model rather than a hand crafted dictionary
+        failed_step_runs = [
+            {
+                "step_id": step_run.step_id,
+                "step_run_action_name": step_run.step.action,
+                "error": step_run.error,
+            }
+            for job_run in other_job_runs
+            if job_run.step_runs
+            for step_run in job_run.step_runs
+            if step_run.error
+        ]
+
+        return failed_step_runs

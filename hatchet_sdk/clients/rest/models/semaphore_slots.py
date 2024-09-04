@@ -17,23 +17,46 @@ from __future__ import annotations
 import json
 import pprint
 import re  # noqa: F401
+from datetime import datetime
 from typing import Any, ClassVar, Dict, List, Optional, Set
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing_extensions import Self
 
-from hatchet_sdk.clients.rest.models.workflow_runs_metrics_counts import (
-    WorkflowRunsMetricsCounts,
-)
+from hatchet_sdk.clients.rest.models.step_run_status import StepRunStatus
 
 
-class WorkflowRunsMetrics(BaseModel):
+class SemaphoreSlots(BaseModel):
     """
-    WorkflowRunsMetrics
+    SemaphoreSlots
     """  # noqa: E501
 
-    counts: Optional[WorkflowRunsMetricsCounts] = None
-    __properties: ClassVar[List[str]] = ["counts"]
+    slot: StrictStr = Field(description="The slot name.")
+    step_run_id: Optional[StrictStr] = Field(
+        default=None, description="The step run id.", alias="stepRunId"
+    )
+    action_id: Optional[StrictStr] = Field(
+        default=None, description="The action id.", alias="actionId"
+    )
+    started_at: Optional[datetime] = Field(
+        default=None, description="The time this slot was started.", alias="startedAt"
+    )
+    timeout_at: Optional[datetime] = Field(
+        default=None, description="The time this slot will timeout.", alias="timeoutAt"
+    )
+    workflow_run_id: Optional[StrictStr] = Field(
+        default=None, description="The workflow run id.", alias="workflowRunId"
+    )
+    status: Optional[StepRunStatus] = None
+    __properties: ClassVar[List[str]] = [
+        "slot",
+        "stepRunId",
+        "actionId",
+        "startedAt",
+        "timeoutAt",
+        "workflowRunId",
+        "status",
+    ]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +75,7 @@ class WorkflowRunsMetrics(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of WorkflowRunsMetrics from a JSON string"""
+        """Create an instance of SemaphoreSlots from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,14 +95,11 @@ class WorkflowRunsMetrics(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of counts
-        if self.counts:
-            _dict["counts"] = self.counts.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of WorkflowRunsMetrics from a dict"""
+        """Create an instance of SemaphoreSlots from a dict"""
         if obj is None:
             return None
 
@@ -88,11 +108,13 @@ class WorkflowRunsMetrics(BaseModel):
 
         _obj = cls.model_validate(
             {
-                "counts": (
-                    WorkflowRunsMetricsCounts.from_dict(obj["counts"])
-                    if obj.get("counts") is not None
-                    else None
-                )
+                "slot": obj.get("slot"),
+                "stepRunId": obj.get("stepRunId"),
+                "actionId": obj.get("actionId"),
+                "startedAt": obj.get("startedAt"),
+                "timeoutAt": obj.get("timeoutAt"),
+                "workflowRunId": obj.get("workflowRunId"),
+                "status": obj.get("status"),
             }
         )
         return _obj

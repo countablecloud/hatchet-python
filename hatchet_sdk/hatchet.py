@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, TypedDict
+from typing import List, Optional
 
 from typing_extensions import deprecated
 
@@ -27,6 +27,7 @@ def workflow(
     timeout: str = "60m",
     schedule_timeout: str = "5m",
     sticky: StickyStrategy = None,
+    default_priority: int | None = None,
 ):
     on_events = on_events or []
     on_crons = on_crons or []
@@ -39,6 +40,7 @@ def workflow(
         cls.timeout = timeout
         cls.schedule_timeout = schedule_timeout
         cls.sticky = sticky
+        cls.default_priority = default_priority
 
         # Define a new class with the same name and bases as the original, but
         # with WorkflowMeta as its metaclass
@@ -165,7 +167,7 @@ class Hatchet:
             config (ClientConfig, optional): Configuration for creating a new Client. Defaults to ClientConfig().
         """
         if client is not None:
-            self.client = client
+            self._client = client
         else:
             self._client = new_client(config, debug)
 
@@ -194,6 +196,18 @@ class Hatchet:
     @property
     def rest(self):
         return self._client.rest
+
+    @property
+    def listener(self):
+        return self._client.listener
+
+    @property
+    def config(self):
+        return self._client.config
+
+    @property
+    def tenant_id(self):
+        return self._client.config.tenant_id
 
     concurrency = staticmethod(concurrency)
 

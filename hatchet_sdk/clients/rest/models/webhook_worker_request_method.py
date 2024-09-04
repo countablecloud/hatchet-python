@@ -20,24 +20,19 @@ from enum import Enum
 from typing_extensions import Self
 
 
-class StepRunStatus(str, Enum):
+class WebhookWorkerRequestMethod(str, Enum):
     """
-    StepRunStatus
+    WebhookWorkerRequestMethod
     """
 
     """
     allowed enum values
     """
-    PENDING = "PENDING"
-    PENDING_ASSIGNMENT = "PENDING_ASSIGNMENT"
-    ASSIGNED = "ASSIGNED"
-    RUNNING = "RUNNING"
-    SUCCEEDED = "SUCCEEDED"
-    FAILED = "FAILED"
-    CANCELLED = "CANCELLED"
-    CANCELLING = "CANCELLING"
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of StepRunStatus from a JSON string"""
+        """Create an instance of WebhookWorkerRequestMethod from a JSON string"""
         return cls(json.loads(json_str))

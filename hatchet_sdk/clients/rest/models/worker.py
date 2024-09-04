@@ -24,7 +24,8 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_v
 from typing_extensions import Annotated, Self
 
 from hatchet_sdk.clients.rest.models.api_resource_meta import APIResourceMeta
-from hatchet_sdk.clients.rest.models.step_run import StepRun
+from hatchet_sdk.clients.rest.models.recent_step_runs import RecentStepRuns
+from hatchet_sdk.clients.rest.models.semaphore_slots import SemaphoreSlots
 from hatchet_sdk.clients.rest.models.worker_label import WorkerLabel
 
 
@@ -35,6 +36,7 @@ class Worker(BaseModel):
 
     metadata: APIResourceMeta
     name: StrictStr = Field(description="The name of the worker.")
+    type: StrictStr
     last_heartbeat_at: Optional[datetime] = Field(
         default=None,
         description="The time this worker last sent a heartbeat.",
@@ -48,9 +50,12 @@ class Worker(BaseModel):
     actions: Optional[List[StrictStr]] = Field(
         default=None, description="The actions this worker can perform."
     )
-    recent_step_runs: Optional[List[StepRun]] = Field(
+    slots: Optional[List[SemaphoreSlots]] = Field(
+        default=None, description="The semaphore slot state for the worker."
+    )
+    recent_step_runs: Optional[List[RecentStepRuns]] = Field(
         default=None,
-        description="The recent step runs for this worker.",
+        description="The recent step runs for the worker.",
         alias="recentStepRuns",
     )
     status: Optional[StrictStr] = Field(
@@ -76,19 +81,38 @@ class Worker(BaseModel):
     labels: Optional[List[WorkerLabel]] = Field(
         default=None, description="The current label state of the worker."
     )
+    webhook_url: Optional[StrictStr] = Field(
+        default=None, description="The webhook URL for the worker.", alias="webhookUrl"
+    )
+    webhook_id: Optional[StrictStr] = Field(
+        default=None, description="The webhook ID for the worker.", alias="webhookId"
+    )
     __properties: ClassVar[List[str]] = [
         "metadata",
         "name",
+        "type",
         "lastHeartbeatAt",
         "lastListenerEstablished",
         "actions",
+        "slots",
         "recentStepRuns",
         "status",
         "maxRuns",
         "availableRuns",
         "dispatcherId",
         "labels",
+        "webhookUrl",
+        "webhookId",
     ]
+
+    @field_validator("type")
+    def type_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(["SELFHOSTED", "MANAGED", "WEBHOOK"]):
+            raise ValueError(
+                "must be one of enum values ('SELFHOSTED', 'MANAGED', 'WEBHOOK')"
+            )
+        return value
 
     @field_validator("status")
     def status_validate_enum(cls, value):
@@ -142,6 +166,13 @@ class Worker(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of metadata
         if self.metadata:
             _dict["metadata"] = self.metadata.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in slots (list)
+        _items = []
+        if self.slots:
+            for _item in self.slots:
+                if _item:
+                    _items.append(_item.to_dict())
+            _dict["slots"] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in recent_step_runs (list)
         _items = []
         if self.recent_step_runs:
@@ -175,11 +206,17 @@ class Worker(BaseModel):
                     else None
                 ),
                 "name": obj.get("name"),
+                "type": obj.get("type"),
                 "lastHeartbeatAt": obj.get("lastHeartbeatAt"),
                 "lastListenerEstablished": obj.get("lastListenerEstablished"),
                 "actions": obj.get("actions"),
+                "slots": (
+                    [SemaphoreSlots.from_dict(_item) for _item in obj["slots"]]
+                    if obj.get("slots") is not None
+                    else None
+                ),
                 "recentStepRuns": (
-                    [StepRun.from_dict(_item) for _item in obj["recentStepRuns"]]
+                    [RecentStepRuns.from_dict(_item) for _item in obj["recentStepRuns"]]
                     if obj.get("recentStepRuns") is not None
                     else None
                 ),
@@ -192,6 +229,8 @@ class Worker(BaseModel):
                     if obj.get("labels") is not None
                     else None
                 ),
+                "webhookUrl": obj.get("webhookUrl"),
+                "webhookId": obj.get("webhookId"),
             }
         )
         return _obj
